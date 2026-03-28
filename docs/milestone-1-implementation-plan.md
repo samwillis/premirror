@@ -200,11 +200,17 @@ Exit criteria:
 Scope:
 
 1. Build reference editor integration with paged viewport.
-2. Add controls:
+2. Use Base UI primitives plus custom CSS for the demo shell.
+3. Add controls:
    - page preset switch (A4/Letter)
    - margins and line-height tuning
    - debug toggle (break reasons, compose timings, invalidations)
-3. Add canonical fixture documents:
+4. Mock a Word-like editing UI with minimal controls:
+   - top toolbar row
+   - document title row
+   - page canvas viewport with visible paper boundaries
+   - minimal formatting controls for M1 (`bold`, `italic`, `code`, page break)
+5. Add canonical fixture documents:
    - short simple doc
    - long narrative doc
    - mixed-script doc (LTR/RTL/CJK sample)
@@ -213,11 +219,13 @@ Deliverables:
 
 - Live demo proving Milestone 1 behavior.
 - Visual debug panel for development and stakeholder review.
+- Base UI + CSS shell that can be incrementally expanded in later milestones.
 
 Exit criteria:
 
 - Editing and pagination remain stable in all fixture docs.
 - Debug panel confirms deterministic recomposition in repeated runs.
+- Demo presents a credible Word-like baseline UI with minimal controls.
 
 ### Workstream G - Testing and Quality Gates
 
@@ -290,6 +298,23 @@ Exit criteria:
 3. Sequence 3: policies v1 and mapping round-trip hardening.
 4. Sequence 4: React integration package + demo paged viewport.
 5. Sequence 5: instrumentation, optimization pass, docs and API cleanup.
+
+## Demo UI Baseline (Milestone 1)
+
+Milestone 1 demo UI should prioritize clarity over feature breadth:
+
+1. Component foundation:
+   - Base UI components for toolbar menus, buttons, toggles, and popovers.
+   - Custom CSS for page surface, app chrome, spacing, and typography.
+2. Layout regions:
+   - Header: document name and status badges (draft/debug).
+   - Toolbar: essential formatting and layout controls only.
+   - Editor area: paged paper surface with visible margins.
+   - Optional side panel: compose timings and break diagnostics.
+3. Interaction scope:
+   - No full ribbon UI in M1.
+   - No advanced inspector panes in M1.
+   - Keep controls intentionally minimal and implementation-focused.
 
 ## Definition of Done
 
