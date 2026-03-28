@@ -1,0 +1,46 @@
+:root {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  color: #1f2937;
+  background: #eef1f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.header {
+  margin: 0 auto 1.5rem auto;
+  max-width: 900px;
+}
+
+.header h1 {
+  margin: 0 0 0.4rem 0;
+}
+
+.header p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.paper-preview {
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  width: 816px;
+  min-height: 1056px;
+  background: white;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  padding: 72px;
+}

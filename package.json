@@ -1,0 +1,16 @@
+{
+  "name": "premirror",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "bun@1.3.10",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter @premirror/demo-app dev",
+    "build": "bun run --filter './{apps,packages}/*' build",
+    "typecheck": "bun run --filter './{apps,packages}/*' typecheck",
+    "lint": "bun run --filter './{apps,packages}/*' lint"
+  }
+}
