@@ -18,11 +18,13 @@ import {
 } from "@premirror/react";
 import { keymap } from "prosemirror-keymap";
 import { type Node as ProseMirrorNode } from "prosemirror-model";
-import { EditorState, type Transaction } from "prosemirror-state";
-import { baseKeymap, toggleMark } from "prosemirror-commands";
+import { EditorState, TextSelection, type Transaction } from "prosemirror-state";
+import { baseKeymap, joinBackward, selectNodeBackward, toggleMark } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { useCallback, useMemo, useState } from "react";
+
+import { LuBold, LuItalic, LuCode, LuSeparatorHorizontal, LuGithub } from "react-icons/lu";
 
 import { demoSchema } from "./schema";
 
@@ -74,6 +76,36 @@ function buildInitialState(
         "Mod-b": toggleMark(strong),
         "Mod-i": toggleMark(em),
         "Mod-`": toggleMark(code),
+        ArrowLeft: (state, dispatch) => {
+          if (!state.selection.empty) return false;
+          const pos = state.selection.from;
+          if (pos <= 1) return false;
+          if (!dispatch) return true;
+          dispatch(state.tr.setSelection(TextSelection.create(state.doc, pos - 1)).scrollIntoView());
+          return true;
+        },
+        ArrowRight: (state, dispatch) => {
+          if (!state.selection.empty) return false;
+          const pos = state.selection.from;
+          const max = Math.max(1, state.doc.content.size);
+          if (pos >= max) return false;
+          if (!dispatch) return true;
+          dispatch(state.tr.setSelection(TextSelection.create(state.doc, pos + 1)).scrollIntoView());
+          return true;
+        },
+        Backspace: (state, dispatch) => {
+          if (!state.selection.empty) return false;
+          const { $from } = state.selection;
+          if ($from.parent.isTextblock && $from.parentOffset === 0) {
+            if (joinBackward(state, dispatch)) return true;
+            if (selectNodeBackward(state, dispatch)) return true;
+          }
+          const pos = state.selection.from;
+          if (pos <= 1) return false;
+          if (!dispatch) return true;
+          dispatch(state.tr.delete(pos - 1, pos).scrollIntoView());
+          return true;
+        },
       }),
       keymap(baseKeymap),
       ...runtime.keymaps,
@@ -343,21 +375,31 @@ export function App() {
     <div className="word-shell">
       <Toolbar.Root className="word-toolbar">
         <Toolbar.Group className="word-toolbar-group">
-          <Toolbar.Button className="word-toolbar-btn" type="button" onClick={toggleBold}>
-            Bold
+          <Toolbar.Button className="word-toolbar-icon-btn" type="button" onClick={toggleBold} aria-label="Bold">
+            <LuBold />
           </Toolbar.Button>
-          <Toolbar.Button className="word-toolbar-btn" type="button" onClick={toggleItalic}>
-            Italic
+          <Toolbar.Button className="word-toolbar-icon-btn" type="button" onClick={toggleItalic} aria-label="Italic">
+            <LuItalic />
           </Toolbar.Button>
-          <Toolbar.Button className="word-toolbar-btn" type="button" onClick={toggleCode}>
-            Code
+          <Toolbar.Button className="word-toolbar-icon-btn" type="button" onClick={toggleCode} aria-label="Code">
+            <LuCode />
           </Toolbar.Button>
           <Toolbar.Separator className="word-toolbar-sep" />
-          <Toolbar.Button className="word-toolbar-btn" type="button" onClick={pageBreak}>
-            Page break
+          <Toolbar.Button className="word-toolbar-icon-btn" type="button" onClick={pageBreak} aria-label="Page break">
+            <LuSeparatorHorizontal />
           </Toolbar.Button>
         </Toolbar.Group>
         <Toolbar.Group className="word-toolbar-group word-toolbar-debug">
+          <a
+            className="word-toolbar-link-btn"
+            href="https://github.com/samwillis/premirror"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <LuGithub />
+            premirror
+          </a>
+          <Toolbar.Separator className="word-toolbar-sep" />
           <span className="word-toolbar-label">Debug</span>
           <Switch.Root
             className="word-debug-switch"

@@ -56,19 +56,45 @@ html, body {
   color: #4b5563;
 }
 
-.word-toolbar-btn {
-  font: inherit;
-  font-size: 0.8125rem;
-  padding: 0.35rem 0.65rem;
+.word-toolbar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111827;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.word-toolbar-btn:hover {
-  border-color: var(--accent);
+.word-toolbar-icon-btn:hover {
+  background: #e5e7eb;
+  color: var(--accent);
+}
+
+.word-toolbar-icon-btn:active {
+  background: #d1d5db;
+}
+
+.word-toolbar-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  background: transparent;
+  color: #374151;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.word-toolbar-link-btn:hover {
+  background: #e5e7eb;
   color: var(--accent);
 }
 

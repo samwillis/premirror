@@ -29,6 +29,7 @@
     "prosemirror-view": "1.41.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-icons": "^5.6.0",
     "react-reconciler": "0.32.0"
   },
   "devDependencies": {
