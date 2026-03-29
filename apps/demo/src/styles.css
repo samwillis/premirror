@@ -166,7 +166,8 @@ html, body {
 }
 
 .paged-viewport-inner {
-  max-width: 900px;
+  width: fit-content;
+  min-width: 100%;
   margin: 0 auto;
 }
 

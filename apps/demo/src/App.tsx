@@ -12,6 +12,8 @@ import {
 } from "@premirror/core";
 import { createPremirror } from "@premirror/prosemirror-adapter";
 import {
+  getPageLayoutGeometry,
+  type PageLayoutMode,
   PremirrorPageViewport,
   usePremirrorEngine,
   useProjectedSelection,
@@ -174,6 +176,7 @@ function paragraphRangeAtPos(
 function buildFragmentDecorations(
   doc: ProseMirrorNode,
   layout: LayoutOutput,
+  pageLayoutMode: PageLayoutMode,
 ): DecorationSet {
   const decorations: Decoration[] = [];
   const paragraphBoxes = new Map<string, ParagraphBox>();
@@ -213,13 +216,14 @@ function buildFragmentDecorations(
     prev.bottom = Math.max(prev.bottom, bottom);
   };
 
-  let pageTop = 0;
-  for (const page of layout.pages) {
+  const geometry = getPageLayoutGeometry(layout, pageLayoutMode);
+  layout.pages.forEach((page, pageIdx) => {
+    const pagePlacement = geometry.pagePlacements[pageIdx] ?? { left: 0, top: 0 };
     for (const frame of page.frames) {
       for (const fragment of frame.fragments) {
         const fragmentParagraph = paragraphRangeFromBlockId(doc, fragment.blockId);
         for (const line of fragment.lines) {
-          const lineTop = pageTop + frame.bounds.y + line.y;
+          const lineTop = pagePlacement.top + frame.bounds.y + line.y;
           const lineBottom = lineTop + line.height;
           const paragraph =
             fragmentParagraph ??
@@ -229,8 +233,8 @@ function buildFragmentDecorations(
             // Paragraph box should represent full editable context width, not
             // just measured text bounds, so clicks in trailing whitespace map
             // to expected caret positions.
-            const lineLeft = frame.bounds.x;
-            const lineRight = frame.bounds.x + frame.bounds.width;
+            const lineLeft = pagePlacement.left + frame.bounds.x;
+            const lineRight = pagePlacement.left + frame.bounds.x + frame.bounds.width;
             const paragraphKey = `${paragraph.from}:${paragraph.to}`;
             upsertParagraphLine(
               paragraphKey,
@@ -253,7 +257,7 @@ function buildFragmentDecorations(
               runFrom: run.pmRange.from,
               runTo: run.pmRange.to,
               paragraphKey: `${runParagraph.from}:${runParagraph.to}`,
-              left: frame.bounds.x + run.x,
+              left: pagePlacement.left + frame.bounds.x + run.x,
               top: lineTop,
               width: run.width,
               lineHeight: line.height,
@@ -262,8 +266,7 @@ function buildFragmentDecorations(
         }
       }
     }
-    pageTop += page.spec.heightPx + 24;
-  }
+  });
 
   for (const box of paragraphBoxes.values()) {
     decorations.push(
@@ -324,6 +327,7 @@ export function App() {
 
   const [editorState, setEditorState] = useState(() => buildInitialState(runtime));
   const [showDebug, setShowDebug] = useState(false);
+  const [pageLayoutMode, setPageLayoutMode] = useState<PageLayoutMode>("spread");
 
   const { layout, diagnostics } = usePremirrorEngine({
     editorState,
@@ -331,10 +335,10 @@ export function App() {
     layoutInput,
   });
 
-  const projection = useProjectedSelection(editorState, layout);
+  const projection = useProjectedSelection(editorState, layout, pageLayoutMode);
   const fragmentDecorations = useMemo(
-    () => buildFragmentDecorations(editorState.doc, layout),
-    [editorState.doc, layout],
+    () => buildFragmentDecorations(editorState.doc, layout, pageLayoutMode),
+    [editorState.doc, layout, pageLayoutMode],
   );
 
   const dispatch = useCallback((tr: Transaction) => {
@@ -400,6 +404,17 @@ export function App() {
             premirror
           </a>
           <Toolbar.Separator className="word-toolbar-sep" />
+          <span className="word-toolbar-label">Facing</span>
+          <Switch.Root
+            className="word-debug-switch"
+            checked={pageLayoutMode === "spread"}
+            onCheckedChange={(checked) => {
+              setPageLayoutMode(checked ? "spread" : "single");
+            }}
+          >
+            <Switch.Thumb className="word-debug-thumb" />
+          </Switch.Root>
+          <Toolbar.Separator className="word-toolbar-sep" />
           <span className="word-toolbar-label">Debug</span>
           <Switch.Root
             className="word-debug-switch"
@@ -427,6 +442,7 @@ export function App() {
             <PremirrorPageViewport
               layout={layout}
               showDebug={showDebug}
+              pageLayoutMode={pageLayoutMode}
               editorLayer={
                 <ProseMirror
                   state={editorState}
