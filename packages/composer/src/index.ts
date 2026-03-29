@@ -252,7 +252,9 @@ function breakBlockIntoLineDrafts(
           for (let i = best - 1; i > offset; i--) {
             const ch = piece[i];
             if (ch === " " || ch === "\t") {
-              best = i;
+              // Include the whitespace with the previous line so the next line
+              // doesn't start with an undecorated/unstyled position.
+              best = i + 1;
               break;
             }
           }
@@ -281,14 +283,17 @@ function breakBlockIntoLineDrafts(
           if (wrappedAtWhitespace) {
             flushCurrentLine();
           }
-          while (offset < piece.length) {
-            const ch = piece[offset];
-            if (ch !== " " && ch !== "\t") break;
-            offset += 1;
-          }
         }
       }
     }
+  }
+  if (lines.length === 0 && currentParts.length === 0) {
+    const anchor = block.runs[0]?.pmRange.from ?? block.pmRange.from + 1;
+    lines.push({
+      runs: [],
+      pmFrom: anchor,
+      pmTo: anchor,
+    });
   }
   flushCurrentLine();
   return lines;

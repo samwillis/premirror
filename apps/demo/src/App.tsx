@@ -47,10 +47,17 @@ function buildInitialState(
   const repeated = Array.from({ length: 7 }, (_, i) =>
     fixtureParagraphs.map((text) => `${text} Section ${i + 1}.`),
   ).flat();
+  const docNodes = repeated.flatMap((text, i) => {
+    const paragraph = demoSchema.node("paragraph", null, [demoSchema.text(text)]);
+    if ((i + 1) % 3 === 0) {
+      return [paragraph, demoSchema.node("paragraph")];
+    }
+    return [paragraph];
+  });
   const doc = demoSchema.node(
     "doc",
     null,
-    repeated.map((text) => demoSchema.node("paragraph", null, [demoSchema.text(text)])),
+    docNodes,
   );
 
   return EditorState.create({
@@ -90,43 +97,164 @@ function styleForRunPosition(
   ].join(";");
 }
 
+type ParagraphBox = {
+  from: number;
+  to: number;
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+function clampPos(doc: ProseMirrorNode, pos: number): number {
+  const max = Math.max(1, doc.content.size);
+  return Math.max(1, Math.min(pos, max));
+}
+
+function paragraphRangeAtPos(
+  doc: ProseMirrorNode,
+  pos: number,
+): { from: number; to: number } | null {
+  const resolved = doc.resolve(clampPos(doc, pos));
+  for (let d = resolved.depth; d >= 0; d--) {
+    const node = resolved.node(d);
+    if (node.type.name !== "paragraph") continue;
+    const from = resolved.before(d);
+    const to = from + node.nodeSize;
+    return { from, to };
+  }
+  return null;
+}
+
 function buildFragmentDecorations(
   doc: ProseMirrorNode,
   layout: LayoutOutput,
 ): DecorationSet {
   const decorations: Decoration[] = [];
+  const paragraphBoxes = new Map<string, ParagraphBox>();
+  const runPlacements: Array<{
+    runFrom: number;
+    runTo: number;
+    paragraphKey: string;
+    left: number;
+    top: number;
+    width: number;
+    lineHeight: number;
+  }> = [];
+
+  const upsertParagraphLine = (
+    key: string,
+    paragraph: { from: number; to: number },
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+  ) => {
+    const prev = paragraphBoxes.get(key);
+    if (!prev) {
+      paragraphBoxes.set(key, {
+        from: paragraph.from,
+        to: paragraph.to,
+        left,
+        top,
+        right,
+        bottom,
+      });
+      return;
+    }
+    prev.left = Math.min(prev.left, left);
+    prev.top = Math.min(prev.top, top);
+    prev.right = Math.max(prev.right, right);
+    prev.bottom = Math.max(prev.bottom, bottom);
+  };
+
   let pageTop = 0;
   for (const page of layout.pages) {
     for (const frame of page.frames) {
       for (const fragment of frame.fragments) {
         for (const line of fragment.lines) {
           const lineTop = pageTop + frame.bounds.y + line.y;
+          const lineBottom = lineTop + line.height;
+          const primaryAnchor = line.pmRange.from;
+          const paragraph =
+            paragraphRangeAtPos(doc, primaryAnchor) ??
+            paragraphRangeAtPos(doc, primaryAnchor > 1 ? primaryAnchor - 1 : primaryAnchor);
+          if (paragraph) {
+            // Paragraph box should represent full editable context width, not
+            // just measured text bounds, so clicks in trailing whitespace map
+            // to expected caret positions.
+            const lineLeft = frame.bounds.x;
+            const lineRight = frame.bounds.x + frame.bounds.width;
+            const paragraphKey = `${paragraph.from}:${paragraph.to}`;
+            upsertParagraphLine(
+              paragraphKey,
+              paragraph,
+              lineLeft,
+              lineTop,
+              lineRight,
+              lineBottom,
+            );
+          }
+
           for (const run of line.runs) {
             if (run.pmRange.from >= run.pmRange.to) continue;
-            decorations.push(
-              Decoration.inline(
-                run.pmRange.from,
-                run.pmRange.to,
-                {
-                  class: "premirror-fragment-run",
-                  style: styleForRunPosition(
-                    frame.bounds.x + run.x,
-                    lineTop,
-                    run.width,
-                    line.height,
-                  ),
-                },
-                {
-                  inclusiveStart: false,
-                  inclusiveEnd: false,
-                },
-              ),
-            );
+            const runParagraph = paragraphRangeAtPos(doc, run.pmRange.from);
+            if (!runParagraph) continue;
+            runPlacements.push({
+              runFrom: run.pmRange.from,
+              runTo: run.pmRange.to,
+              paragraphKey: `${runParagraph.from}:${runParagraph.to}`,
+              left: frame.bounds.x + run.x,
+              top: lineTop,
+              width: run.width,
+              lineHeight: line.height,
+            });
           }
         }
       }
     }
     pageTop += page.spec.heightPx + 24;
+  }
+
+  for (const box of paragraphBoxes.values()) {
+    decorations.push(
+      Decoration.node(box.from, box.to, {
+        class: "premirror-fragment-paragraph",
+        style: [
+          "position:absolute",
+          `left:${box.left}px`,
+          `top:${box.top}px`,
+          `width:${Math.max(1, box.right - box.left)}px`,
+          `height:${Math.max(1, box.bottom - box.top)}px`,
+          "margin:0",
+          "overflow:visible",
+        ].join(";"),
+      }),
+    );
+  }
+
+  for (const run of runPlacements) {
+    const paragraphBox = paragraphBoxes.get(run.paragraphKey);
+    if (!paragraphBox) continue;
+    decorations.push(
+      Decoration.inline(
+        run.runFrom,
+        run.runTo,
+        {
+          class: "premirror-fragment-run",
+          style: styleForRunPosition(
+            run.left - paragraphBox.left,
+            run.top - paragraphBox.top,
+            run.width,
+            run.lineHeight,
+          ),
+        },
+        {
+          inclusiveStart: false,
+          inclusiveEnd: false,
+        },
+      ),
+    );
   }
   return DecorationSet.create(doc, decorations);
 }
