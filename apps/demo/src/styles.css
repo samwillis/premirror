@@ -1,5 +1,5 @@
 :root {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: #111827;
   background: #d8dee8;
   --shell-border: #c5ccd6;
@@ -150,9 +150,24 @@ body {
   outline: none;
   min-height: 100%;
   overflow: visible !important;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 20px;
   color: #111827;
+}
+
+.premirror-editor-surface .ProseMirror strong {
+  font-weight: 700;
+}
+
+.premirror-editor-surface .ProseMirror em {
+  font-style: italic;
+}
+
+.premirror-editor-surface .ProseMirror code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1em;
+  font-style: normal;
+  font-weight: 400;
 }
 
 .premirror-editor-surface {
@@ -166,11 +181,15 @@ body {
 
 .premirror-fragment-paragraph {
   position: absolute;
+  color: transparent;
+  caret-color: #111827;
+  overflow: hidden;
 }
 
 .premirror-fragment-run {
   position: absolute;
   white-space: pre;
+  color: #111827;
 }
 
 .selection-overlay {

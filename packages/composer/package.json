@@ -14,6 +14,7 @@
     "benchmark": "bun scripts/benchmark.ts"
   },
   "dependencies": {
+    "@chenglou/pretext": "^0.0.3",
     "@premirror/core": "workspace:*"
   },
   "devDependencies": {

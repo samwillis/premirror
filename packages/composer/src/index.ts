@@ -1,3 +1,4 @@
+import { layoutNextLine, prepareWithSegments } from "@chenglou/pretext";
 import type {
   BandObstacle,
   BlockFragment,
@@ -18,6 +19,24 @@ import type {
   StyledRun,
 } from "@premirror/core";
 import { DEFAULT_LAYOUT_POLICIES } from "@premirror/core";
+
+const UNBOUNDED_WIDTH = 1_000_000_000;
+const pretextWidthCache = new Map<string, number>();
+
+function widthByPretext(text: string, font: string): number | null {
+  const key = `${font}\n${text}`;
+  const cached = pretextWidthCache.get(key);
+  if (cached !== undefined) return cached;
+  try {
+    const prepared = prepareWithSegments(text, font);
+    const line = layoutNextLine(prepared, { segmentIndex: 0, graphemeIndex: 0 }, UNBOUNDED_WIDTH);
+    const width = Math.max(0, line?.width ?? 0);
+    pretextWidthCache.set(key, width);
+    return width;
+  } catch {
+    return null;
+  }
+}
 
 function nowMs(): number {
   const perf = (globalThis as { performance?: { now(): number } }).performance;
@@ -63,7 +82,18 @@ function readWidthFromPrepared(prepared: unknown): number | null {
 function runWidthPx(run: StyledRun, measured: MeasuredDocumentSnapshot["measuredRuns"]): number {
   const m = measured[run.id];
   const w = m ? readWidthFromPrepared(m.prepared) : null;
-  if (w !== null) return Math.max(0, w);
+  // prepared.widthPx is for the full measured run; only use it when lengths match.
+  if (
+    w !== null &&
+    m &&
+    typeof m.textLength === "number" &&
+    m.textLength > 0 &&
+    run.text.length === m.textLength
+  ) {
+    return Math.max(0, w);
+  }
+  const pretextWidth = widthByPretext(run.text, run.font);
+  if (pretextWidth !== null) return pretextWidth;
   if (
     m &&
     typeof m.widthPx === "number" &&
@@ -218,6 +248,9 @@ function breakBlockIntoLineDrafts(
     linePmTo = Math.max(linePmTo, pmTo);
   };
 
+  const isWordChar = (ch: string | undefined): boolean =>
+    ch !== undefined && /[A-Za-z0-9]/.test(ch);
+
   for (const run of block.runs) {
     const pieces = run.text.split("\n");
     for (let pi = 0; pi < pieces.length; pi++) {
@@ -260,6 +293,23 @@ function breakBlockIntoLineDrafts(
           }
         }
 
+        // If the candidate would end with a one-letter trailing token and the
+        // next character continues the same word, backtrack to the preceding
+        // whitespace so we don't emit line ends like "... w".
+        if (best > offset && best < piece.length && isWordChar(piece[best])) {
+          const candidate = piece.slice(offset, best);
+          const token = /(?:^|[ \t])([A-Za-z0-9])$/.exec(candidate);
+          if (token) {
+            const lastSpace = Math.max(candidate.lastIndexOf(" "), candidate.lastIndexOf("\t"));
+            if (lastSpace >= 0) {
+              const backtracked = offset + lastSpace + 1;
+              if (backtracked > offset) {
+                best = backtracked;
+              }
+            }
+          }
+        }
+
         if (best === offset) {
           const sub = piece.slice(offset, offset + 1);
           const w = runWidthPx({ ...run, text: sub }, measuredRuns);
@@ -272,7 +322,34 @@ function breakBlockIntoLineDrafts(
           appendToLine(pr, pr.pmRange.from, pr.pmRange.to);
           offset += 1;
         } else {
-          const sub = piece.slice(offset, best);
+          const fittedLen = best - offset;
+          const candidate = piece.slice(offset, best);
+          const splittingWordAfterOneChar =
+            lineWidthUsed > 0 &&
+            fittedLen === 1 &&
+            best < piece.length &&
+            isWordChar(piece[offset]) &&
+            isWordChar(piece[best]);
+          const splittingWordAfterWhitespaceOneChar =
+            lineWidthUsed > 0 &&
+            best < piece.length &&
+            /^[ \t]*[A-Za-z0-9]$/.test(candidate) &&
+            isWordChar(piece[best]);
+          if (splittingWordAfterOneChar) {
+            // Avoid "single-character + rest-of-word" breaks (e.g. "c an").
+            // Reflow this token on the next line; if it still can't fit there,
+            // normal single-character fallback below will handle it.
+            flushCurrentLine();
+            continue;
+          }
+          if (splittingWordAfterWhitespaceOneChar) {
+            // Also avoid wrapping as " w" + "ord" when only one word char
+            // fits after leading whitespace.
+            flushCurrentLine();
+            continue;
+          }
+
+          const sub = candidate;
           const placed: PlacedRun[] = [];
           const x = lineWidthUsed;
           pushPlacedSegment(run, measuredRuns, sub, offset, best, x, placed);

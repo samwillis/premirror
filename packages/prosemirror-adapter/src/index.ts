@@ -106,11 +106,11 @@ function resolveFont(typography: TypographyConfig, marks: ResolvedMarkSet): stri
   const sizePx = parseFontSizePx(typography);
   const weight = marks.strong === true ? 700 : 400;
   const style = marks.em === true ? "italic" : "normal";
-  const base = typography.defaultFont.includes("px")
-    ? typography.defaultFont
-    : `${sizePx}px ${typography.defaultFont}`;
-  const family = marks.code === true ? "ui-monospace, monospace" : base;
-  return `${style} ${weight} ${family}`;
+  const defaultFamily = typography.defaultFont.includes("px")
+    ? typography.defaultFont.replace(/^\s*\d+(?:\.\d+)?px\s+/i, "")
+    : typography.defaultFont;
+  const family = marks.code === true ? "ui-monospace, SFMono-Regular, Menlo, monospace" : defaultFamily;
+  return `${style} ${weight} ${sizePx}px ${family}`;
 }
 
 function toResolvedMarkSet(marks: readonly Mark[]): ResolvedMarkSet {

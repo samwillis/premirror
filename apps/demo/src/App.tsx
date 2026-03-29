@@ -277,7 +277,16 @@ function buildFragmentDecorations(
 }
 
 export function App() {
-  const options = useMemo(() => defaultPremirrorOptions(), []);
+  const options = useMemo(() => {
+    const defaults = defaultPremirrorOptions();
+    return {
+      ...defaults,
+      typography: {
+        ...defaults.typography,
+        defaultFont: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      },
+    };
+  }, []);
   const runtime = useMemo(() => createPremirror(options), [options]);
   const layoutInput = useMemo(() => createLayoutInputFromOptions(options), [options]);
 

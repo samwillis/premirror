@@ -10,9 +10,14 @@ const root = document.getElementById("root");
 if (!root) {
   throw new Error("Missing #root element");
 }
+const rootElement = root;
 
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+function bootstrap(): void {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+bootstrap();
